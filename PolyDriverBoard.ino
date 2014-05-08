@@ -33,6 +33,11 @@ int mode = 0; // current mode
 int button = 2; // pin of button
  
 int potValue = 0; // value of pot
+bool sevSegOff = true;
+
+// variables varied by the pot
+float intensityScale;
+float speedScale;
  
 // values used for mode set/buttton debouncing
 long modeSetTime = 0;
@@ -81,11 +86,23 @@ void loop()
   {
     case 1:
     
-    break;
+      break;
     case 2:
-    break;
+      if (sevSegOff)
+      {
+        speedScale = (float)potValue/1023;
+        setSevenSeg((int)(9*speedScale));
+      }
+      break;
+    case 3:
+      if (sevSegOff)
+      {
+        intensityScale = (float)potValue/1023;
+        setSevenSeg((int)(9*intensityScale));
+      }
+      break;
     default:
-    break;
+      break;
   }
 }
  
@@ -182,14 +199,18 @@ void checkMode()
         mode++;
         modeSetTime = millis(); // set time mode was set so seven seg can be turned off after
                                 // duration
-        if (mode>2) mode = 0;
+        if (mode>3) mode = 0;
         setSevenSeg(mode); //set seven seg to mode number
+        sevSegOff = false;
       }
     }
   }
   lastButtonState = reading;
-  if ((millis() - modeSetTime) > 5000) setSevenSeg(10); // disable seven seg after 5000 
-                                                        // milliseconds
+  if ((millis() - modeSetTime) > 2000)
+  { 
+    setSevenSeg(10); // disable seven seg after 2000 milliseconds
+    sevSegOff = true;
+  }
 }
  
 /*
