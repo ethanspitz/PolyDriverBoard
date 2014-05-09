@@ -29,22 +29,15 @@
  
 #include <Wire.h>
  
-int mode = 0; // current mode
+volatile int mode = 0; // current mode
 int button = 2; // pin of button
+volatile bool bP = false; // button pressed flag to exit current modes
  
 int potValue = 0; // value of pot
-bool sevSegOff = true;
+volatile bool sevSegOff = true;
 
-// variables varied by the pot
-float intensityScale;
-float speedScale;
- 
 // values used for mode set/buttton debouncing
-long modeSetTime = 0;
-int buttonState;
-int lastButtonState = HIGH; 
-long lastDebounceTime = 0;
-long debounceDelay = 50;
+volatile long modeSetTime = 0;
   
 // definition of registers on the pwm chip
 #define LED0_ON_L 0x6
@@ -52,7 +45,7 @@ long debounceDelay = 50;
 #define LED0_OFF_L 0x8
 #define LED0_OFF_H 0x9
 
-#define PWM_ADDR 0x04 //address of the PWM chip
+#define PWM_ADDR 0x40 //address of the PWM chip
 
 
 void setup()
@@ -66,6 +59,7 @@ void setup()
    
   // configure pushbutton
   pinMode(2, INPUT);
+  attachInterrupt(0,checkMode,FALLING); // setup interrupt
    
   // configure serial and i2c communication
   Serial.begin(9600);
@@ -77,29 +71,71 @@ void setup()
  
 void loop()
 {  
-     
-  potValue = analogRead(A0); // save value from potentiometer
-  checkMode(); // check button/update seven seg
+  //checkMode();
+  bP = false; // clear ISR flag
+  if ((millis() - modeSetTime) > 2000)
+  { 
+    setSevenSeg(10); // disable seven seg after 2000 milliseconds
+    sevSegOff = true;
+  }
   
   // defines what each mode does
   switch (mode)
   {
     case 1:
-    
+    // test every channel by fading up, then down
+    for (int i = 0; i < 10; i += 1)
+    {
+      for (int j = 0; j < 4095; j += 10*readPot())//scale on pot value
+      {
+        setPWM(i, j);
+        if (bP) break;
+      }
+      for (int j = 4095; j>0; j -= 10*readPot())
+      {
+        setPWM(i, j);
+        if (bP) break;
+      }
+      if (bP) break;
+      delay(100);
+    }
       break;
     case 2:
-      if (sevSegOff)
-      {
-        speedScale = (float)potValue/1023;
-        setSevenSeg((int)(9*speedScale));
+      //knight rider, no tail, red background, white chase
+      for(int i = 0; i<5; ++i) setPWM(i,4095);
+      for(int i = 4; i<10; ++i) setPWM(i,0);
+      for(int k = 0; k<5; ++k){
+        for (int i = 0; i<4096; i += 20*readPot())//scale on pot value
+        {
+          setPWM(9-k,i);
+          setPWM(4-k,4095-i);
+          if (bP) break;
+        }
+        for (int i = 4095; i>0; i -= 20*readPot())
+        {
+          setPWM(9-k,i);
+          setPWM(4-k,4095-i);
+          if (bP) break;
+        }
+        if (bP) break;
+      }
+      for(int k = 3; k>0; --k){
+        for (int i = 0; i<4096; i += 20*readPot()) 
+        {
+          setPWM(9-k,i);
+          setPWM(4-k,4095-i);
+          if (bP) break;
+        }
+        for (int i = 4095; i>0; i -= 20*readPot())
+        {
+          setPWM(9-k,i);
+          setPWM(4-k,4095-i);
+          if (bP) break;
+        }
+        if (bP) break;
       }
       break;
     case 3:
-      if (sevSegOff)
-      {
-        intensityScale = (float)potValue/1023;
-        setSevenSeg((int)(9*intensityScale));
-      }
       break;
     default:
       break;
@@ -182,37 +218,20 @@ void setSevenSeg (int value)
 }
  
 /*
- *  Checks state of button and increments mode if pressed and displays value on seven seg
+ * increments mode and displays value on seven seg, triggered by ISR
  */
+ 
 void checkMode()
 {
-  // debounced button reading below
-  int reading = digitalRead(button);
-  if (reading != lastButtonState) {
-    // reset the debouncing timer
-    lastDebounceTime = millis();
-  } 
-  if ((millis() - lastDebounceTime) > debounceDelay) {
-    if (reading != buttonState) {
-      buttonState = reading;
-      if (buttonState == LOW) {
-        mode++;
-        modeSetTime = millis(); // set time mode was set so seven seg can be turned off after
+  mode++;
+  modeSetTime = millis(); // set time mode was set so seven seg can be turned off after
                                 // duration
-        if (mode>3) mode = 0;
-        setSevenSeg(mode); //set seven seg to mode number
-        sevSegOff = false;
-      }
-    }
-  }
-  lastButtonState = reading;
-  if ((millis() - modeSetTime) > 2000)
-  { 
-    setSevenSeg(10); // disable seven seg after 2000 milliseconds
-    sevSegOff = true;
-  }
+  if (mode>3) mode = 0;
+  setSevenSeg(mode); //set seven seg to mode number
+  sevSegOff = false;
+  bP = true;
 }
- 
+
 /*
  * setPWM brightness on channel given over I2C
  */
@@ -236,9 +255,20 @@ void setConfiguration()
 {
   Wire.beginTransmission(PWM_ADDR);
   Wire.write(0x00); //enter Mode 1 Register
-  Wire.write(0x21); //enable ocsillator and auto-increment register
+  Wire.write(0xa1); //enable ocsillator and auto-increment register and restart
+  Wire.endTransmission();
+  delayMicroseconds(500);//500ms delay required after reset
   Wire.beginTransmission(PWM_ADDR);
   Wire.write(0x01); //enter Mode 2 Register
-  Wire.write(0x01); //set drive mode for external MOSFETS 
+  Wire.write(0x04); //set drive mode for external MOSFETS 
   Wire.endTransmission();
+}
+
+/*
+ * function for returning a scaled value from 0 to 1
+ */
+float readPot()
+{
+  potValue = analogRead(A0); // save value from potentiometer
+  return (float)potValue/1023;   
 }
