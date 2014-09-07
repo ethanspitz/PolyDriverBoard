@@ -28,6 +28,9 @@
  */
  
 #include <Wire.h>
+#include "windowSetting.h"
+
+
  
 volatile int mode = 0; // current mode
 int button = 2; // pin of button
@@ -136,8 +139,105 @@ void loop()
       }
       break;
     case 3:
+      for(int i = 0; i<=14; ++i) setPWM(i,0);
+      for(int k = 0; k<=5; ++k)
+      {
+        for (int i = 0; i < 4096; i += 20*readPot())
+        {
+          setPWM(14-k,i);
+          setPWM(9-k, i);
+          setPWM(4-k, i);
+          if (bP) break;
+        }
+        if (bP) break;
+      }
+      for(int k = 0; k<=5; ++k)
+      {
+        for (int i = 4095; i >= 0; i -= 20*readPot())
+        {
+          setPWM(14-k,i);
+          setPWM(9-k, i);
+          setPWM(4-k, i);
+          if (bP) break;
+        }
+        if (bP) break;
+      }
+      break;
+    case 4:
+      for(int i = 0; i<=4; ++i) setPWM(9-i,4095);
+      for (int k = 0; k<=4; ++k)
+      {
+        for (int i = 0; i < 4096; i += 20*readPot())
+        {
+          setPWM(9-k, 4095-i);
+          setPWM(4-k, i);
+          if (bP) break;
+        }
+        if (bP) break;
+      }
+      for (int k = 0; k<=4; ++k)
+      {
+        for (int i = 0; i < 4096; i += 20*readPot())
+        {
+          setPWM(14-k,i);
+          setPWM(4-k, 4095-i);
+          if (bP) break;
+        }
+        if (bP) break;
+      }
+      for (int k = 0; k<=4; ++k)
+      {
+        for (int i = 0; i < 4096; i += 20*readPot())
+        {
+          setPWM(9-k,i);
+          setPWM(14-k, 4095-i);
+          if (bP) break;
+        }
+        if (bP) break;
+      }
+      break;
+    case 5:
+      for(int i = 0; i<=4; ++i) setPWM(BLUE-i,4095);
+      for(int i = 0; i<=4; ++i) setPWM(GREEN-i,4095);
+      for (int k = 0; k<=4; ++k)
+      {
+        for (int i = 0; i < 4096; i += 20*readPot())
+        {
+          setPWM(BLUE-k,4095-i);
+          setPWM(RED-k, i);
+          if (bP) break;
+        }
+        if (bP) break;
+      }
+      for (int k = 0; k<=4; ++k)
+      {
+        for (int i = 0; i < 4096; i += 20*readPot())
+        {
+          setPWM(GREEN-k,4095-i);
+          setPWM(BLUE-k, i);
+          if (bP) break;
+        }
+        if (bP) break;
+      }
+      for (int k = 0; k<=4; ++k)
+      {
+        for (int i = 0; i < 4096; i += 20*readPot())
+        {
+          setPWM(RED-k,4095-i);
+          setPWM(GREEN-k, i);
+          if (bP) break;
+        }
+        if (bP) break;
+      }
+      break;
+    case 6:
+      rainbowFunction();
+    break;
+    case 7:
+      rainbowFunction2();
       break;
     default:
+    mode = 7;
       break;
   }
 }
@@ -226,7 +326,7 @@ void checkMode()
   mode++;
   modeSetTime = millis(); // set time mode was set so seven seg can be turned off after
                                 // duration
-  if (mode>3) mode = 0;
+  if (mode>7) mode = 0;
   setSevenSeg(mode); //set seven seg to mode number
   sevSegOff = false;
   bP = true;
@@ -272,3 +372,106 @@ float readPot()
   potValue = analogRead(A0); // save value from potentiometer
   return (float)potValue/1023;   
 }
+
+void rainbowFunction()
+{
+  COLOR colorArray[6] = {red, orange, yellow, green, blue, purple};
+  int i = 0;
+  while (true)
+  {
+    for(int j = 0; j <= 1000; j += 10*readPot())
+    {
+      setWindowColor(the, colorArray[(4+i)%6], j);
+      setWindowColor(p, colorArray[(3+i)%6], j);
+      setWindowColor(o, colorArray[(2+i)%6], j);
+      setWindowColor(l, colorArray[(1+i)%6], j);
+      setWindowColor(y, colorArray[(0+i)%6], j);
+    }
+    for(int j = 1000; j >= 0; j -= 10*readPot())
+    {
+      setWindowColor(the, colorArray[(4+i)%6], j);
+      setWindowColor(p, colorArray[(3+i)%6], j);
+      setWindowColor(o, colorArray[(2+i)%6], j);
+      setWindowColor(l, colorArray[(1+i)%6], j);
+      setWindowColor(y, colorArray[(0+i)%6], j);
+    }
+    i++;
+    if (bP) break;
+ }
+}
+
+void rainbowFunction2()
+{
+  COLOR colorArray[6] = {red, orange, yellow, green, blue, purple};
+  int i = 0;
+  while (true)
+  {
+    for(int j = 0; j <= 1000; j += 10*readPot())
+    {
+      setWindowColor(the, colorArray[(0+i)%6], j);
+      setWindowColor(p, colorArray[(0+i)%6], j);
+      setWindowColor(o, colorArray[(0+i)%6], j);
+      setWindowColor(l, colorArray[(0+i)%6], j);
+      setWindowColor(y, colorArray[(0+i)%6], j);
+    }
+    for(int j = 1000; j >= 0; j -= 10*readPot())
+    {
+      setWindowColor(the, colorArray[(0+i)%6], j);
+      setWindowColor(p, colorArray[(0+i)%6], j);
+      setWindowColor(o, colorArray[(0+i)%6], j);
+      setWindowColor(l, colorArray[(0+i)%6], j);
+      setWindowColor(y, colorArray[(0+i)%6], j);
+    }
+    i++;
+    if (bP) break;
+ }
+}
+
+
+void setWindowColor(WINDOW_SELECTION window, COLOR color, int brightness)
+{
+  switch (color)
+  {
+    case red:
+      setPWM(RED-window, 4095*((float)brightness/1000));
+      setPWM(GREEN-window, 0);
+      setPWM(BLUE-window, 0);
+      break;
+    case orange:
+      setPWM(RED-window, 4095*((float)brightness/1000));
+      setPWM(GREEN-window, 500*((float)brightness/1000));
+      setPWM(BLUE-window, 0);
+      break;
+    case yellow:
+      setPWM(RED-window, 4095*((float)brightness/1000));
+      setPWM(GREEN-window, 1500*((float)brightness/1000));
+      setPWM(BLUE-window, 0);
+      break;
+    case green:
+      setPWM(RED-window, 0);
+      setPWM(GREEN-window, 4095*((float)brightness/1000));
+      setPWM(BLUE-window, 0);
+      break;
+    case blue:
+      setPWM(RED-window, 0);
+      setPWM(GREEN-window, 0);
+      setPWM(BLUE-window, 4095*((float)brightness/1000));
+      break;
+    case purple:
+      setPWM(RED-window, 4095*((float)brightness/1000));
+      setPWM(GREEN-window, 0);
+      setPWM(BLUE-window, 3000*((float)brightness/1000));
+      break;
+    case white:
+      setPWM(RED-window, 4095*((float)brightness/1000));
+      setPWM(GREEN-window, 1500*((float)brightness/1000));
+      setPWM(BLUE-window, 1500*((float)brightness/1000));
+      break;
+    default:
+      setPWM(RED-window, 0);
+      setPWM(GREEN-window, 0);
+      setPWM(BLUE-window, 0);
+      break;
+  }
+}
+     
